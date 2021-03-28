@@ -1,0 +1,3 @@
+# HIDAPI/libusb
+SUBSYSTEM=="usb", ATTRS{idVendor}=="16d0", ATTRS{idProduct}=="0e22", MODE="0666"
+

@@ -1,0 +1,187 @@
+
+// ************************************************
+// INSTALL GLOW IDE EXTENSION ENVIRONMENT
+// ************************************************
+
+sudo apt install curl
+curl -sL https://deb.nodesource.com/setup_10.x | sudo bash -
+sudo apt-get install nodejs
+node -v
+npm -v
+
+npm install -g yo generator-code
+yo code
+
+sudo apt install git
+git config --global user.name "fivefifty"
+git config --global user.email "dev@ledmaker.org"
+
+ssh-keygen -t rsa -b 4096 -C "dev@ledmaker.org"
+gedit /home/anon/.ssh/id_rsa.pub
+
+wget -q https://packages.microsoft.com/config/ubuntu/18.04/packages-microsoft-prod.deb
+sudo dpkg -i packages-microsoft-prod.deb
+sudo add-apt-repository universe
+sudo apt-get install apt-transport-https
+sudo sh -c 'echo "deb [arch=amd64] https://packages.microsoft.com/repos/microsoft-ubuntu-bionic-prod bionic main" > /etc/apt/sources.list.d/dotnetdev.list'
+sudo apt-get update
+sudo apt-get install dotnet-runtime-2.1
+
+sudo apt-get --purge remove dotnet-runtime-2.1
+sudo apt autoremove
+
+sudo apt-get update && sudo apt-get upgrade && sudo apt-get dist-upgrade
+
+
+
+// ************************************************
+// CLEAN/CLONE REPOS
+// ************************************************
+
+rm -rf ~/Desktop/Disk
+mkdir ~/Desktop/Disk
+
+cd ~/Desktop/Disk
+git clone git@github.com:ledartstudio/GlowIDE.git
+cd GlowIDE
+npm install
+
+cd ~/Desktop/Disk
+git clone git@github.com:ledartstudio/GlowSimulator.git
+cd GlowSimulator
+
+cd ~/Desktop/Disk
+git clone git@github.com:ledartstudio/BuildAutomation.git
+
+
+
+// ************************************************
+// GENERATE LINUX SIMULATOR EXECUTABLES
+// ************************************************
+
+1) Open BuildAutomation app in VS Code:
+
+cd ~/Desktop/LED/BuildAutomation
+code .
+
+2) Restore BuildAutomation app dependencies
+3) Run app in vscode to generate sim executables.
+4) Copy install notes to GlowIDE repo:
+
+cp -i ~/Desktop/install_notes.txt ~/Desktop/LED/GlowIDE/lib/linux/
+
+5) Stage/review sim executables/install notes:
+
+cd ~/Desktop/LED/GlowIDE
+git status
+git add lib/linux/simulator_elektra_20
+git add lib/linux/simulator_matrix_10x10
+git add lib/linux/install_notes.txt
+git diff --name-only --cached
+
+6) Push sim executables/install notes to repo:
+
+git commit -m "Update Linux simulator executables and install notes"
+git push origin master
+
+
+// ************************************************
+// TEST GLOW IDE EXTENSION
+// ************************************************
+
+cd ~/Desktop/LED/GlowIDE/lib/linux
+chmod +x simulator_elektra_20 
+chmod +x simulator_matrix_10x10 
+chmod +x glowusb_x64
+cd ~/Desktop/LED/GlowIDE
+code .
+
+
+
+// ************************************************
+// LINUX USB HID
+// ************************************************
+
+1) Install HIDAPI prerequisites:
+sudo apt-get install autotools-dev autoconf automake libtool
+sudo apt-get install libudev-dev libusb-1.0-0-dev libfox-1.6-dev
+
+2) Download HIDAPI source:
+cd ~/Desktop
+git clone git://github.com/signal11/hidapi.git
+
+3) Expand makefiles:
+cd ~/Desktop/hidapi/
+./bootstrap
+./configure 
+
+4) Modify ~/Desktop/hidapi/libusb/usb.c to use control endpoint only:
+- if (dev->output_endpoint <= 0)
++ if (dev->output_endpoint <= 9)
+
+5) Replace generic ~/Desktop/hidapi/hidtest/hidtest.cpp with customized hidtest.cpp for Elektra.
+
+6) Build executable with HIDAPI embedded:
+cd ~/Desktop/hidapi/libusb/
+make -f Makefile-manual
+
+7) To clean:
+cd ~/Desktop/hidapi/libusb/
+make -f Makefile-manual clean
+
+8) To run:
+./hidtest-libusb-dload
+./hidtest-libusb-start
+
+8) Give users permission to communicate with Elektra LED device:
+cp 99-hid.rules /etc/udev/rules.d
+
+launch.json:
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "(gdb) Launch",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/hidtest-libusb",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": true,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ],
+            "preLaunchTask": "build"
+        }
+    ]
+}
+
+tasks.json:
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "build",
+            "type": "shell",
+            "command": "${workspaceFolder}/build.sh",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        }
+    ]
+}
+
+Archived uneeded stuff:
+Use libhidapi-libusb.so in /usr/local/include/lib:
+g++ -o test -g test.cpp -l:libhidapi-libusb.so
